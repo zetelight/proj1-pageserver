@@ -15,6 +15,7 @@
 
 import config    # Configure from .ini files and command line
 import logging   # Better than print statements
+import os
 logging.basicConfig(format='%(levelname)s:%(message)s',
                     level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -58,7 +59,6 @@ def serve(sock, func):
         (clientsocket, address) = sock.accept()
         _thread.start_new_thread(func, (clientsocket,))
 
-
 ##
 # Starter version only serves cat pictures. In fact, only a
 # particular cat picture.  This one.
@@ -76,6 +76,7 @@ STATUS_OK = "HTTP/1.0 200 OK\n\n"
 STATUS_FORBIDDEN = "HTTP/1.0 403 Forbidden\n\n"
 STATUS_NOT_FOUND = "HTTP/1.0 404 Not Found\n\n"
 STATUS_NOT_IMPLEMENTED = "HTTP/1.0 401 Not Implemented\n\n"
+required_type = ["css", "html"]
 
 
 def respond(sock):
@@ -91,8 +92,19 @@ def respond(sock):
 
     parts = request.split()
     if len(parts) > 1 and parts[0] == "GET":
-        transmit(STATUS_OK, sock)
-        transmit(CAT, sock)
+        # Get the path requested
+        url_requested = parts[1]
+        # Get exact file we need
+        file_requested = parts[1].split("/")[-1]
+
+
+        if (("//" or "~" or "..") in url_requested) or \
+                (file_requested.split(".")[1] not in required_type):
+            # ERROR 403 situation
+            transmit(STATUS_FORBIDDEN, sock)
+        else:
+            transmit(STATUS_OK, sock)
+            spew(file_requested, sock)
     else:
         log.info("Unhandled request: {}".format(request))
         transmit(STATUS_NOT_IMPLEMENTED, sock)
@@ -102,6 +114,21 @@ def respond(sock):
     sock.close()
     return
 
+def spew(file_name, sock):
+    """
+    Spew contents of 'source' to standard output.
+    Source should be a file or file-like object.
+
+    Source: spew.py from proj1-pageserver.
+    """
+    source_path = os.path.join(DOCROOT, file_name)
+    try:
+        with open(source_path, 'r', encoding='utf-8') as source:
+            for line in source:
+                transmit(line, sock)
+    except:
+        # ERROR 404 situation
+        transmit(STATUS_NOT_FOUND, sock)
 
 def transmit(msg, sock):
     """It might take several sends to get the whole message out"""
@@ -136,8 +163,10 @@ def get_options():
 
 
 def main():
+    global DOCROOT
     options = get_options()
     port = options.PORT
+    DOCROOT = options.DOCROOT
     if options.DEBUG:
         log.setLevel(logging.DEBUG)
     sock = listen(port)
