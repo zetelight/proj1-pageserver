@@ -95,16 +95,18 @@ def respond(sock):
         # Get the path requested
         url_requested = parts[1]
         # Get exact file we need
-        file_requested = parts[1].split("/")[-1]
-
-
-        if (("//" or "~" or "..") in url_requested) or \
-                (file_requested.split(".")[1] not in required_type):
-            # ERROR 403 situation
+        try:
+            file_requested = parts[1].split("/")[-1]
+            if (("//" or "~" or "..") in url_requested) or\
+                    (file_requested.split(".")[1] not in required_type):
+                # ERROR 403 situation
+                transmit(STATUS_FORBIDDEN, sock)
+            else:
+                transmit(STATUS_OK, sock)
+                spew(file_requested, sock)
+        except:
             transmit(STATUS_FORBIDDEN, sock)
-        else:
-            transmit(STATUS_OK, sock)
-            spew(file_requested, sock)
+
     else:
         log.info("Unhandled request: {}".format(request))
         transmit(STATUS_NOT_IMPLEMENTED, sock)
