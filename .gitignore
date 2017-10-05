@@ -1,5 +1,7 @@
 # Files we don't keep under git revision control 
-#
+
+#Pycharm files
+.idea/
 __pycache__ 
 .DS_STORE
 *.pyc    
